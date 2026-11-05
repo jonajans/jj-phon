@@ -7,10 +7,10 @@ form Automatic correction of SweDia 2000 prosody annotations
 	infile: "Sound input directory", ""
 	infile: "TextGrid input directory", ""
 	outfile: "TextGrid output directory", ""
-    comment: "Script will identify the pattern 'A, silence, B'."A
-    sentence: "Regex A", "(en)$|(fem)$|(tio)$|(hundra)$|(tjugo)$|(femtio)$"
+    comment: "Script will identify the pattern 'A, silence, B'."
+    sentence: "Regex A", "(?i(en)$|(fem)$|(tio)$|(hundra)$|(tjugo)$|(femtio)$)"
 	positive: "Minimum silence duration (s)", "0.05"
-    sentence: "Regex B", "(krona)$|(kronor)$|(dollar)$|(pund)$|(d-mark)$|(mark)$"
+    sentence: "Regex B", "(?i(krona)$|(kronor)$|(dollar)$|(pund)$|(d-mark)$|(mark)$)"
     comment: "Where duration of B is how many tiems greater than A?"
 	positive: "Difference factor", "2"
     boolean: "Inspect every file", 1
@@ -22,20 +22,6 @@ tgDirectory$ = textGrid_input_directory$
 correctionsDirectory$ = textGrid_output_directory$
 diffFactor = difference_factor
 minSilenceDuration = minimum_silence_duration
-
-# if user forgot to finish directories with slashes:
-if not right$ (tgDirectory$, 1) == "\"
-	tgDirectory$ = tgDirectory$ + "\"
-endif
-
-if not right$ (soundDirectory$, 1) == "\"
-	soundDirectory$ = soundDirectory$ + "\"
-endif
-
-if not right$ (correctionsDirectory$, 1) == "\"
-	correctionsDirectory$ = correctionsDirectory$ + "\"
-endif
-
 
 clearinfo
 appendInfoLine: "Looking for a difference factor of ", diffFactor, " and minimum silence of ", minSilenceDuration 
@@ -68,7 +54,7 @@ for i to numGrids
 		soundObject = Read from file: soundPath$
 	endif
 
-	# Initialize som variables
+	# Initialize some variables
 	keep = 0
 	save = 0
 	hasEdited = 0

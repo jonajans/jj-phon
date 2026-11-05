@@ -17,19 +17,6 @@ soundDirectory$ = sound_input_directory$
 typeFile$ = sweDia_metadata_csv_path$
 outDirectory$ = textGrid_output_directory$
 
-# if user forgot to finish directories with slashes:
-if not right$ (tgDirectory$, 1) == "\"
-    tgDirectory$ = tgDirectory$ + "\"
-endif
-
-if not right$ (soundDirectory$, 1) == "\"
-    soundDirectory$ = soundDirectory$ + "\"
-endif
-
-if not right$ (outDirectory$, 1) == "\"
-    outDirectory$ = outDirectory$ + "\"
-endif
-
 inDirTG$ = tgDirectory$ + "*.TextGrid"
 tgList = Create Strings as file list: "tgList", inDirTG$
 numGrids = Get number of strings
