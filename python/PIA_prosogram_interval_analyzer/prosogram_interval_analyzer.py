@@ -15,7 +15,7 @@ MAX_SILENCE_DURATION = 1.8
 
 
 def read_points(path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Returnerar arrayer med typ, tid, styl_hz, styl_st"""
+    """Returns arrays w/ type, time, styl_hz, styl_st"""
     with open(path, "r", encoding="utf-8") as file:
         rows = [
             token
