@@ -1,0 +1,1 @@
+Create a subdirectory called "plugin_program" and place the downloaded Prosogram plugin there: https://sites.google.com/site/prosogram/

@@ -1,11 +1,20 @@
-# Jonathan Jansson's Praat Scripts
+# Jonathan Jansson's Phonetics Scripts
 
-I do not like doing unnecessary work. In order to save myself from having to do precisely that, I have written a few [Praat](http://praat.org) scripts through my phonetics studies which are collected here.
+I do not like doing unnecessary work. In order to save myself from having to do precisely that, I have written a few [Praat](http://praat.org) and Python scripts through my phonetics studies which are collected here.
 
-## Miscellaneous
+## Python
+
+### PIA - Prosogram Interval Analyzer
+
+`prosogram_interval_analyzer.py` (PIA) can be used to go from a list of (pitch, time) points as output by the [Prosogram stylization method](https://sites.google.com/site/prosogram/), to a csv containing the intervals between all of these points as well as lots of related information, to histograms over the distribution of intervals in the stylization. It runs quite interactively but with little error handling. The script expects the Praat script files for Prosogram to be placed in a subdirectory called `plugin_prosogram`, in the same directory as the script. The aim was to have one script to go all the way from sound to histogram over the analyzed intervals, so a large portion of the code is concerned with generating the histograms, but they could of course be produced externally using the analysis result. Uses [Parselmouth](https://parselmouth.readthedocs.io/en/stable/) to run Prosogram through Python. 
+
+
+## Praat scripts
+
+### Miscellaneous
 `silenceZero` uses a reference TextGrid and silences all unlabeled intervals in the corresponding wav files by setting the selection to zero at the nearest zero-crossings. Intervals with labels are left untouched. I used it to silence sloppy field recordings were the researcher was heard just as well as the informant, but the informant's speech was at least labeled.
 
-## SweDia 2000 scripts
+### SweDia 2000 scripts
 
 The following scripts were written for correcting, extracting and conducting measurements on the word accents of Swedish in recordings from the [SweDia 2000 database](https://swedia.ling.gu.se/) (see Eriksson [2004](https://gupea.ub.gu.se/bitstream/handle/2077/23896/gupea_2077_23896_1.pdf?sequence=1) for a summary). Used for my Bachelor's thesis.
 
