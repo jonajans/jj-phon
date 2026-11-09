@@ -1,3 +1,4 @@
+import argparse
 import csv
 import math
 import os
@@ -11,7 +12,7 @@ from matplotlib.ticker import MaxNLocator
 
 # Maximum duration in seconds for an utterance to be included in the histograms
 # Intervals with longer duration than this will not be discarded from the analysis output
-MAX_SILENCE_DURATION = 1.8
+MAX_DURATION = 1.8
 
 
 def read_points(path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -35,9 +36,7 @@ def read_points(path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndar
     return types, times, styl_hz, styl_st
 
 
-def analyze_intervals(
-    path: Path, max_silence_duration: float, normalize: bool
-) -> dict[str, np.ndarray]:
+def analyze_intervals(path: Path, max_silence_duration: float) -> dict[str, np.ndarray]:
     """Returns a dict with one array per csv-column"""
     types, times, hz, st = read_points(path)
     midi = 12 * np.log2(hz / 440) + 69
@@ -68,6 +67,13 @@ def analyze_intervals(
 
     slope = st_diff / duration
     slope_norm = st_diff_norm / duration
+    dynamic = st_diff != 0
+
+    print(
+        f"Found {dynamic.sum()} dynamic segments, {(~dynamic).sum()} static segments, "
+        f"{inter_utt.sum()} inter-utterance segments, and {octave_error.sum()} larger than one octave (12 ST)\n"
+        f"Mean of interval F0 start is {np.mean(st[:-1])} ST re. 1 Hz, stdev {np.std(st[:-1])}."
+    )
 
     return {
         "type": np.where(is_inter, "intersyll", "intrasyll"),
@@ -86,7 +92,7 @@ def analyze_intervals(
         "size_st_norm": st_diff_norm.round(4),
         "slope_st_per_s": slope.round(4),
         "slope_st_per_s_norm": slope_norm.round(4),
-        "dynamic": (st_diff != 0).astype(int),
+        "dynamic": dynamic.astype(int),
         "inter_utterance": inter_utt.astype(int),
         "octave_error": octave_error.astype(int),
     }
@@ -139,7 +145,7 @@ def plot_and_save_histogram(
         plt.hist(intervals, bins=bins, edgecolor="black", alpha=0.75, color="#1f77b4")
         plt.xlim(-bins_bound - 1, bins_bound + 1)
 
-    # Tvinga y-axeln att enbart visa heltal
+    # Force integer bounds
     plt.gca().yaxis.set_major_locator(MaxNLocator(integer=True))
 
     plt.title(title, fontsize=14)
@@ -163,13 +169,6 @@ def generate_histograms(
     dynamic = cols["dynamic"] == 1
     inter_utt = cols["inter_utterance"] == 1
     is_inter = cols["type"] == "intersyll"
-    octave_error = cols["octave_error"] == 1
-
-    print(
-        f"Found {dynamic.sum()} dynamic segments, {(~dynamic).sum()} static segments, "
-        f"{inter_utt.sum()} inter-utterance segments, and {octave_error.sum()} larger than one octave (12 ST)\n"
-        f"Mean of interval F0 start is {np.mean(cols['from_st'])} ST re. 1 Hz, stdev {np.std(cols['from_st'])}."
-    )
 
     # Plot only intervals that are dynamic & within duration threshold
     keep_tot = dynamic & ~inter_utt
@@ -276,27 +275,73 @@ def print_welcome_info() -> None:
     )
 
 
-def main():
-    print_welcome_info()
-
-    generate_stylization = input_to_bool(
-        input("Generate Prosogram stylization? [y/n] ")
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="PIA: Prosogram interval analyzer",
+        description="Analyse a Prosogram stylization by going from points to interval representation. Requires separate download of the Prosogram Praat plugin.",
+        epilog="Jonathan Jansson <jonathan1jansson@gmail.com>",
     )
 
+    parser.add_argument(
+        "input",
+        nargs="?",  # args optional - if not, will run interactively
+        type=Path,
+        help="Path to .wav-file (will run stylization through Prosogram) "
+        "or to a previously created stylization *_styl.txt",
+    )
+
+    parser.add_argument(
+        "--max-duration",
+        type=float,
+        default=MAX_DURATION,  # if not specified, use constant at top of file
+        help="Maximum duration (in seconds) for interval not to be flagged as "
+        f"inter-utterance. Default: {MAX_DURATION}",
+    )
+
+    args = parser.parse_args()
+
+    if (
+        args.input is not None
+        and args.input.suffix.lower() != ".wav"
+        and not args.input.name.endswith("_styl.txt")
+    ):
+        parser.error("input must be a wav or *_styl.txt file")
+
+    return args
+
+
+def main():
+    args = parse_args()
+    max_duration = args.max_duration
+
+    if args.input is None:  # run interactively
+        print_welcome_info()
+        generate_stylization = input_to_bool(
+            input("Generate Prosogram stylization? [y/n] ")
+        )
+
+        if generate_stylization:
+            wav_path = Path(input("Enter path to wav file: "))
+
+        else:
+            styl_path = Path(input("Relative path to _styl.txt file: "))
+
+    else:  # CLI usage: determine if input is sound or stylization
+        generate_stylization = args.input.suffix.lower() == ".wav"
+
+        if generate_stylization:
+            wav_path = args.input
+
+        else:
+            styl_path = args.input
+
     if generate_stylization:
-        wav_path_str = input("Enter path to wav file: ")
-        run_prosogram(wav_path_str)
+        run_prosogram(wav_path)
+        styl_path = wav_path.with_name(f"{wav_path.stem}_styl.txt")
 
-        wav_path = Path(wav_path_str)
-        INPUT_PATH = wav_path.with_name(f"{wav_path.stem}_styl.txt")
-    else:
-        INPUT_PATH = Path(
-            input("Relative path to _styl.txt file: ")
-        )  # "testdata/0_nap_yw_1p_tyst_styl.txt"
-
-    if not INPUT_PATH.is_file():
+    if not styl_path.is_file():
         raise SystemExit(
-            f"Cannot find {INPUT_PATH}. This can be caused by several things. Tips for troubleshooting:\n"
+            f"Cannot find {styl_path}. This can be caused by several things. Tips for troubleshooting:\n"
             "1. Ensure that Prosogram is placed in the subdirectory plugin_prosogram relative "
             "to the script file\n"
             "2. Ensure that the flag rich_format_stylization is set to 1 in prosomain.praat (see p. 51ff of the User Guide)\n"
@@ -306,36 +351,35 @@ def main():
 
     print("[Running PIA]")
 
-    # creating output folder
-    base_stem = INPUT_PATH.stem.removesuffix("_styl")
-    OUTPUT_DIR = INPUT_PATH.with_name(f"{base_stem}_results")
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"Analysis & histograms will be saved to the directory {OUTPUT_DIR}.")
-    ANALYSIS_OUTPUT_PATH = OUTPUT_DIR / f"{base_stem}_analysis.csv"
+    # create folder name
+    base_stem = styl_path.stem.removesuffix("_styl")
+    output_dir = styl_path.with_name(f"{base_stem}_results")
+
+    # create output directory if needed
+    output_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Analysis & histograms will be saved to the directory {output_dir}.")
+    analysis_output_path = output_dir / f"{base_stem}_analysis.csv"
 
     print(
-        f"Max duration of interval is set to {MAX_SILENCE_DURATION} s.\n"
-        f"All intervals will be analyzed, but intervals longer than {MAX_SILENCE_DURATION} s will be treated\n"
-        "as inter-utterance and not included in the histogram plots.\n"
-        "This threshold can be changed at the very start of the script file.\n"
+        f"Max duration of interval is set to {max_duration} s. Intervals with longer duration \n"
+        "will be marked as inter-utterance and not included in the histogram plots.\n"
+        "This threshold can be changed by adding the flag --max-duration [float].\n"
     )
 
-    SAVE_HIST_HZ = input_to_bool(input("Save histograms in Hz? [y/n] "))
-    SAVE_HIST_ST = input_to_bool(input("Save histograms in semitones? [y/n] "))
-    NORMALIZE = input_to_bool(
-        input("Normalize intervals larger than 12 ST to within range ±12 ST? [y/n] ")
-    )
+    cols = analyze_intervals(styl_path, max_duration)
 
-    cols = analyze_intervals(INPUT_PATH, MAX_SILENCE_DURATION, NORMALIZE)
-
-    with open(ANALYSIS_OUTPUT_PATH, "w", newline="", encoding="utf-8") as csvfile:
+    with open(analysis_output_path, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(cols)  # the keys in this become the column headers
-        writer.writerows(zip(*cols.values()))  # one row per interval
-        print(f"Analyzed {INPUT_PATH} and saved to {ANALYSIS_OUTPUT_PATH}")
+        writer.writerow(cols)
+        writer.writerows(zip(*cols.values()))  # gives one row per interval
+        print(f"Analyzed {styl_path} and saved to {analysis_output_path}")
 
-    if SAVE_HIST_HZ or SAVE_HIST_ST:
-        generate_histograms(cols, OUTPUT_DIR, base_stem, SAVE_HIST_HZ, SAVE_HIST_ST)
+    # Ask to generate histograms
+    save_hz = input_to_bool(input("Save histograms in Hz? [y/n] "))
+    save_st = input_to_bool(input("Save histograms in semitones? [y/n] "))
+
+    if save_hz or save_st:
+        generate_histograms(cols, output_dir, base_stem, save_hz, save_st)
         print("Saved histogram(s)")
 
 
