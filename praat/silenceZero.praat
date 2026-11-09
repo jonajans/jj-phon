@@ -92,16 +92,9 @@ for i to numGrids
 
         editor: soundObject
             Move cursor to: startZero
-
-            if zeroDur <= 1.5
-                Move end of selection by: zeroDur
-            else
-                Move end of selection by: 1.5
-            endif
-		
+			Move end of selection by: zeroDur
 			Set selection to zero
 			Close
-
 		endeditor
 		
 		label \%{NEXTINTV}
